@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { UrlInput } from './UrlInput';
 import { AnalysisResult } from './AnalysisResult';
-import { analyzePortfolio, generateScore, extractProjects } from '../services/gemini';
+import { performFullAnalysis } from '../services/gemini';
 import { Sparkles, Zap, Target, TrendingUp, Flame } from 'lucide-react';
+import { Logo } from './Logo';
 
 export function AnalysisTool() {
   const [isLoading, setIsLoading] = useState(false);
@@ -41,25 +42,22 @@ export function AnalysisTool() {
         throw new Error('Could not extract content from the URL.');
       }
 
-      // 2. Analyze with Gemini
-      const [critique, marketing, improvements, roast, score, projects] = await Promise.all([
-        analyzePortfolio(data.content, 'critique', socialLinks),
-        analyzePortfolio(data.content, 'marketing', socialLinks),
-        analyzePortfolio(data.content, 'improvements', socialLinks),
-        analyzePortfolio(data.content, 'roast', socialLinks),
-        generateScore(data.content, socialLinks),
-        extractProjects(data.content),
-      ]);
+      // 2. Analyze with Gemini (Combined call to save quota)
+      const analysis = await performFullAnalysis(data.content, socialLinks);
+
+      if (!analysis) {
+        throw new Error('Failed to analyze portfolio. Please try again later.');
+      }
 
       setResults({
-        critique: critique || "Failed to generate critique.",
-        marketing: marketing || "Failed to generate marketing copy.",
-        improvements: improvements || "Failed to generate improvements.",
-        roast: roast || "Failed to generate roast.",
-        score: score || null,
+        critique: analysis.critique || "Failed to generate critique.",
+        marketing: analysis.marketing || "Failed to generate marketing copy.",
+        improvements: analysis.improvements || "Failed to generate improvements.",
+        roast: analysis.roast || "Failed to generate roast.",
+        score: analysis.score || null,
         socialLinks,
         analyzedUrl: url,
-        projects: projects || [],
+        projects: analysis.projects || [],
       });
 
     } catch (err: any) {
@@ -80,8 +78,9 @@ export function AnalysisTool() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center max-w-3xl mx-auto mb-16"
+          className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center"
         >
+          <Logo className="mb-8" />
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-sm font-medium mb-6 border border-indigo-100 dark:border-indigo-800">
             <Sparkles className="w-4 h-4" />
             <span>AI-Powered Portfolio Analysis</span>

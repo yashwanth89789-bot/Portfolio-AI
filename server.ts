@@ -20,15 +20,17 @@ async function startServer() {
     try {
       // Add protocol if missing
       const targetUrl = url.startsWith("http") ? url : `https://${url}`;
+      console.log("Attempting to fetch URL:", targetUrl);
       
       const response = await fetch(targetUrl, {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; PortfolioBooster/1.0; +http://example.com)",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to fetch URL: ${response.statusText}`);
+        console.error(`Failed to fetch URL: ${targetUrl}, Status: ${response.status}, StatusText: ${response.statusText}`);
+        throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
       }
 
       const html = await response.text();

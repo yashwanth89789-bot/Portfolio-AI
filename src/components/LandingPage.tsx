@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight } from 'lucide-react';
+import { Logo } from './Logo';
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -11,8 +12,9 @@ export function LandingPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="text-center max-w-2xl"
+        className="text-center max-w-2xl flex flex-col items-center"
       >
+        <Logo className="mb-8" />
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-sm font-medium mb-6 border border-indigo-100 dark:border-indigo-800">
           <Sparkles className="w-4 h-4" />
           <span>AI-Powered Portfolio Analysis</span>

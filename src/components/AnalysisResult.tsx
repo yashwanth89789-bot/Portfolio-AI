@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
 import { CheckCircle2, MessageSquare, Rocket, Copy, Check, Flame, Trophy, Linkedin, Github, Twitter, Share2 } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface ScoreData {
   overall: number;
@@ -87,6 +88,10 @@ export function AnalysisResult({ critique, marketing, improvements, roast, score
   return (
     <div className="w-full max-w-4xl mx-auto mt-12">
       
+      <div className="flex items-center justify-center mb-12">
+        <Logo className="scale-75" />
+      </div>
+
       {/* Social Links and Share Section */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex gap-4">
