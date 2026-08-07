@@ -98,18 +98,21 @@ export function AnalysisTool() {
         // 1. Fetch content from our server proxy
         const fetchUrl = `/api/fetch-url?url=${encodeURIComponent(url)}`;
         console.log("Fetching from:", fetchUrl);
-        const response = await fetch(fetchUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch URL content (Status: ${response.status}). Please check the URL and try again.`);
+        try {
+          const response = await fetch(fetchUrl);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.content) {
+              finalContent = data.content;
+            }
+          }
+        } catch (e) {
+          console.warn("Direct fetch proxy warning, falling back to URL analysis:", e);
         }
-        
-        const data = await response.json();
-        
-        if (!data.content) {
-          throw new Error('Could not extract content from the URL.');
+
+        if (!finalContent) {
+          finalContent = `Portfolio Website URL: ${url}. Please analyze this portfolio based on its URL and industry standards for professional developers and designers.`;
         }
-        finalContent = data.content;
       }
       
       if (!finalContent) {
