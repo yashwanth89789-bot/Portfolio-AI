@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { CheckCircle2, MessageSquare, Rocket, Copy, Check, Flame, Trophy, Linkedin, Github, Twitter, Share2 } from 'lucide-react';
+import { CheckCircle2, MessageSquare, Rocket, Copy, Check, Trophy, Linkedin, Github, Twitter, Share2, AlertCircle, ArrowUpRight } from 'lucide-react';
 import { Logo } from './Logo';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip } from 'recharts';
 
 interface ScoreData {
   overall: number;
@@ -28,29 +29,55 @@ interface AnalysisResultProps {
   critique: string;
   marketing: string;
   improvements: string;
-  roast: string;
   score: ScoreData | null;
   socialLinks: { linkedin: string, github: string, twitter: string };
   analyzedUrl: string;
   projects: Project[];
 }
 
-export function AnalysisResult({ critique, marketing, improvements, roast, score, socialLinks, analyzedUrl, projects }: AnalysisResultProps) {
-  const [activeTab, setActiveTab] = useState<'critique' | 'marketing' | 'improvements' | 'roast'>('critique');
+export function AnalysisResult({ critique, marketing, improvements, score, socialLinks, analyzedUrl, projects }: AnalysisResultProps) {
+  const [activeTab, setActiveTab] = useState<'critique' | 'marketing' | 'improvements'>('critique');
   const [copied, setCopied] = useState(false);
 
   const tabs = [
     { id: 'critique', label: 'Critique', icon: MessageSquare },
     { id: 'improvements', label: 'Improvements', icon: CheckCircle2 },
     { id: 'marketing', label: 'Marketing', icon: Rocket },
-    { id: 'roast', label: 'Roast Me', icon: Flame },
   ] as const;
 
   const content = {
     critique,
     marketing,
     improvements,
-    roast,
+  };
+
+  const radarData = score ? [
+    { subject: 'UX', A: score.breakdown.ux },
+    { subject: 'Content', A: score.breakdown.content },
+    { subject: 'Technical', A: score.breakdown.technical },
+    { subject: 'SEO', A: score.breakdown.seo },
+    { subject: 'Social', A: score.breakdown.social },
+  ] : [];
+
+  const lowMetrics = score 
+    ? Object.entries(score.breakdown).filter(([_, val]) => val < 75).sort((a, b) => a[1] - b[1])
+    : [];
+
+  const getMetricAdvice = (key: string) => {
+    switch (key) {
+      case 'ux':
+        return 'Enhance visual hierarchy, ensure sufficient color contrast, and simplify navigation to reduce cognitive load.';
+      case 'content':
+        return 'Refine copywriting with compelling case studies, quantifiable achievements, and clear value propositions.';
+      case 'technical':
+        return 'Highlight robust tech stacks, clean code practices, performance optimizations, and live deployment links.';
+      case 'seo':
+        return 'Optimize meta tags, use semantic HTML headings, add descriptive alt text, and incorporate relevant industry keywords.';
+      case 'social':
+        return 'Prominently display active professional social profiles, GitHub contributions, and tech community links.';
+      default:
+        return 'Review and polish this section to align with industry best practices.';
+    }
   };
 
   const handleCopy = () => {
@@ -78,13 +105,6 @@ export function AnalysisResult({ critique, marketing, improvements, roast, score
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 90) return 'text-emerald-500 border-emerald-500';
-    if (score >= 70) return 'text-indigo-500 border-indigo-500';
-    if (score >= 50) return 'text-yellow-500 border-yellow-500';
-    return 'text-red-500 border-red-500';
-  };
-
   return (
     <div className="w-full max-w-4xl mx-auto mt-12">
       
@@ -107,33 +127,6 @@ export function AnalysisResult({ critique, marketing, improvements, roast, score
             <Share2 className="w-4 h-4" />
             Share Results
           </button>
-          <a
-            href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
-          >
-            <Linkedin className="w-4 h-4" />
-            LinkedIn
-          </a>
-          <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(score?.summary || 'Check out my portfolio analysis!')}&url=${encodeURIComponent(window.location.href)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-sky-500 text-white rounded-lg text-sm font-medium hover:bg-sky-600 transition-colors"
-          >
-            <Twitter className="w-4 h-4" />
-            Twitter
-          </a>
-          <a
-            href={`https://github.com/issues/new?title=Portfolio%20Analysis%20Summary&body=${encodeURIComponent(`## Portfolio Analysis Summary\n\n${score?.summary || 'Check out my portfolio analysis!'}\n\nView full analysis: ${window.location.href}`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
-          >
-            <Github className="w-4 h-4" />
-            GitHub
-          </a>
         </div>
       </div>
 
@@ -152,8 +145,8 @@ export function AnalysisResult({ critique, marketing, improvements, roast, score
                   </p>
                 )}
                 <div className="flex gap-4">
-                  {project.liveDemoUrl && <a href={project.liveDemoUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-600 hover:underline">Live Demo</a>}
-                  {project.githubUrl && <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-zinc-900 dark:text-white hover:underline">GitHub</a>}
+                  {project.liveDemoUrl && <a href={project.liveDemoUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-indigo-600 hover:underline flex items-center gap-1">Live Demo <ArrowUpRight className="w-3 h-3" /></a>}
+                  {project.githubUrl && <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-zinc-900 dark:text-white hover:underline flex items-center gap-1">GitHub <ArrowUpRight className="w-3 h-3" /></a>}
                 </div>
               </div>
             ))}
@@ -163,66 +156,100 @@ export function AnalysisResult({ critique, marketing, improvements, roast, score
 
       {score && (
         <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
           className="mb-12 bg-white dark:bg-zinc-900 rounded-2xl p-8 shadow-xl border border-zinc-200 dark:border-zinc-800"
         >
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="relative w-32 h-32 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="58"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  fill="transparent"
-                  className="text-zinc-100 dark:text-zinc-800"
-                />
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="58"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  fill="transparent"
-                  strokeDasharray={364}
-                  strokeDashoffset={364 - (364 * score.overall) / 100}
-                  className={`${getScoreColor(score.overall)} transition-all duration-1000 ease-out`}
-                />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className={`text-4xl font-bold ${getScoreColor(score.overall).split(' ')[0]}`}>
-                  {score.overall}
-                </span>
-                <span className="text-xs text-zinc-400 uppercase font-medium mt-1">Score</span>
-              </div>
+          <div className="flex flex-col md:flex-row items-center gap-8 mb-8">
+            <div className="flex-1 w-full h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={radarData}>
+                  <PolarGrid stroke="#e5e7eb" />
+                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 12 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                  <Radar
+                    name="Score"
+                    dataKey="A"
+                    stroke="#4f46e5"
+                    fill="#4f46e5"
+                    fillOpacity={0.6}
+                  />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                    itemStyle={{ color: '#1f2937' }}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
             </div>
             
-            <div className="flex-1 w-full">
-              <div className="flex items-center gap-2 mb-4">
+            <div className="md:w-1/3 w-full text-center md:text-left flex flex-col justify-center">
+              <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
                 <Trophy className="w-5 h-5 text-yellow-500" />
                 <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Portfolio Grade</h3>
               </div>
-              <p className="text-zinc-600 dark:text-zinc-400 mb-6 text-sm">
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.5, type: 'spring', stiffness: 200 }}
+                className="text-5xl font-extrabold text-indigo-600 dark:text-indigo-400 mb-4"
+              >
+                {score.overall}<span className="text-lg font-medium text-zinc-400">/100</span>
+              </motion.div>
+              <p className="text-zinc-600 dark:text-zinc-400 text-sm leading-relaxed">
                 {score.summary}
               </p>
-              
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {Object.entries(score.breakdown).map(([key, value]) => (
-                  <div key={key} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-lg p-3">
-                    <div className="text-xs text-zinc-500 uppercase font-medium mb-1">{key}</div>
-                    <div className="text-lg font-bold text-zinc-900 dark:text-white">{value}/100</div>
-                    <div className="w-full bg-zinc-200 dark:bg-zinc-700 h-1.5 rounded-full mt-2 overflow-hidden">
-                      <div 
-                        className="bg-indigo-500 h-full rounded-full" 
-                        style={{ width: `${value}%` }}
-                      />
+            </div>
+          </div>
+
+          {/* Animated Breakdown Bars */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+            {Object.entries(score.breakdown).map(([key, value], idx) => (
+              <motion.div
+                key={key}
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: idx * 0.1 }}
+                className="bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 border border-zinc-200 dark:border-zinc-700 text-center"
+              >
+                <div className="text-xs text-zinc-500 uppercase font-semibold mb-1">{key}</div>
+                <div className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">{value}</div>
+                <div className="w-full bg-zinc-200 dark:bg-zinc-700 h-2 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${value}%` }}
+                    transition={{ duration: 0.8, delay: 0.2 + idx * 0.1, ease: 'easeOut' }}
+                    className="bg-indigo-600 h-full rounded-full"
+                  />
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Actionable Improvements for Low Metrics */}
+          <div className="mt-8 pt-8 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertCircle className="w-5 h-5 text-indigo-500" />
+              <h4 className="text-lg font-bold text-zinc-900 dark:text-white">Targeted Action Plan for Low Metrics</h4>
+            </div>
+            {lowMetrics.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {lowMetrics.map(([key, val]) => (
+                  <div key={key} className="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-semibold uppercase text-xs tracking-wider text-indigo-600 dark:text-indigo-400">{key}</span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">{val}/100</span>
                     </div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300">{getMetricAdvice(key)}</p>
                   </div>
                 ))}
               </div>
-            </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 text-sm flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-500" />
+                <span>Fantastic job! All metric scores are strong (75+), indicating a well-rounded portfolio.</span>
+              </div>
+            )}
           </div>
         </motion.div>
       )}
@@ -256,13 +283,13 @@ export function AnalysisResult({ critique, marketing, improvements, roast, score
           <div className="p-6 md:p-8">
             <div className="flex justify-between items-start mb-6">
               <h3 className="text-2xl font-bold text-zinc-900 dark:text-white capitalize flex items-center gap-2">
-                {activeTab === 'roast' && <Flame className="w-6 h-6 text-orange-500" />}
                 {tabs.find(t => t.id === activeTab)?.label}
               </h3>
               <button
                 onClick={handleCopy}
                 className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800"
                 title="Copy to clipboard"
+                aria-label="Copy to clipboard"
               >
                 {copied ? <Check className="w-5 h-5 text-green-500" /> : <Copy className="w-5 h-5" />}
               </button>
@@ -277,3 +304,4 @@ export function AnalysisResult({ critique, marketing, improvements, roast, score
     </div>
   );
 }
+

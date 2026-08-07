@@ -36,16 +36,14 @@ export async function performFullAnalysis(content: string, socialLinks: { linked
   1. A structured critique (First Impressions, UX/UI, Content Quality, Technical Proficiency).
   2. Viral marketing content (Twitter thread, LinkedIn post, About Me blurb).
   3. 5 concrete improvements to increase hiring chances.
-  4. A ruthless, funny roast of the portfolio.
-  5. A score from 0 to 100 for UX, Content, Technical, SEO, and Social Presence.
-  6. A list of projects extracted from the content (title, description, urls, suggestions).
+  4. A score from 0 to 100 for UX, Content, Technical, SEO, and Social Presence.
+  5. A list of projects extracted from the content (title, description, urls, suggestions).
 
   Return the results ONLY as a JSON object with this structure:
   {
     "critique": "markdown string",
     "marketing": "markdown string",
     "improvements": "markdown string",
-    "roast": "markdown string",
     "score": {
       "overall": number,
       "breakdown": { "ux": number, "content": number, "technical": number, "seo": number, "social": number },
@@ -67,7 +65,6 @@ export async function performFullAnalysis(content: string, socialLinks: { linked
           critique: { type: Type.STRING },
           marketing: { type: Type.STRING },
           improvements: { type: Type.STRING },
-          roast: { type: Type.STRING },
           score: {
             type: Type.OBJECT,
             properties: {
@@ -102,7 +99,7 @@ export async function performFullAnalysis(content: string, socialLinks: { linked
             },
           },
         },
-        required: ["critique", "marketing", "improvements", "roast", "score", "projects"],
+        required: ["critique", "marketing", "improvements", "score", "projects"],
       },
     }
   });
