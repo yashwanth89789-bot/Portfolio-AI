@@ -98,12 +98,20 @@ export function AnalysisTool() {
         }
 
         // Fetch URL content via local proxy
-        const response = await fetch(`/api/fetch-url?url=${encodeURIComponent(urlInput.trim())}`);
-        if (!response.ok) {
-          throw new Error('Could not fetch portfolio URL. You can also paste your resume or portfolio text directly.');
+        let response: Response;
+        try {
+          response = await fetch(`/api/fetch-url?url=${encodeURIComponent(urlInput.trim())}`);
+        } catch (netErr: any) {
+          throw new Error('Network error connecting to proxy server. Please paste your resume or portfolio text directly.');
         }
-        const data = await response.json();
-        if (!data.content) {
+
+        const data = await response.json().catch(() => ({ error: 'Invalid response from server' }));
+
+        if (!response.ok || data.error) {
+          throw new Error(data.error || 'Could not fetch portfolio URL. You can also paste your resume or portfolio text directly.');
+        }
+
+        if (!data.content || data.content.length < 20) {
           throw new Error('No readable text extracted from the URL. Please paste your content directly.');
         }
         contentToAnalyze = data.content;
@@ -337,8 +345,30 @@ export function AnalysisTool() {
 
               {/* Error Banner */}
               {error && (
-                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs sm:text-sm">
-                  {error}
+                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs sm:text-sm space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="font-semibold">Notice:</span>
+                    <span>{error}</span>
+                  </div>
+                  {inputMode === 'url' && (
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <button
+                        onClick={() => {
+                          setInputMode('text');
+                          setError(null);
+                        }}
+                        className="px-3 py-1 rounded-lg bg-rose-100 dark:bg-rose-900/80 text-rose-800 dark:text-rose-200 font-semibold text-xs hover:bg-rose-200 transition-colors"
+                      >
+                        Switch to Paste Text Mode
+                      </button>
+                      <button
+                        onClick={() => handleLoadSample(SAMPLE_PORTFOLIOS[0])}
+                        className="px-3 py-1 rounded-lg bg-white dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 border border-zinc-300 dark:border-zinc-700 font-semibold text-xs hover:bg-zinc-50 transition-colors"
+                      >
+                        Load Sample Portfolio Data
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
