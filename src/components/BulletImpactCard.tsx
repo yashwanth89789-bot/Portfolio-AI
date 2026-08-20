@@ -311,7 +311,7 @@ export function BulletImpactCard({
             </div>
 
             {/* Executive */}
-            <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-850 text-xs flex flex-col justify-between gap-2">
+            <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 text-xs flex flex-col justify-between gap-2">
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-zinc-900 dark:text-white flex items-center gap-1">
@@ -332,7 +332,7 @@ export function BulletImpactCard({
             </div>
 
             {/* Technical */}
-            <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-850 text-xs flex flex-col justify-between gap-2">
+            <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 text-xs flex flex-col justify-between gap-2">
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-zinc-900 dark:text-white flex items-center gap-1">
@@ -353,7 +353,7 @@ export function BulletImpactCard({
             </div>
 
             {/* Concise */}
-            <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-850 text-xs flex flex-col justify-between gap-2">
+            <div className="p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800/60 text-xs flex flex-col justify-between gap-2">
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-zinc-900 dark:text-white flex items-center gap-1">
