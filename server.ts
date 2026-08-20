@@ -1,4 +1,5 @@
 import express from "express";
+import path from "path";
 import { createServer as createViteServer } from "vite";
 import * as cheerio from "cheerio";
 
@@ -7,6 +8,11 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  // Health check endpoint for container / Cloud Run deployment
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
 
   // API Route to fetch and parse URL content
   app.get("/api/fetch-url", async (req, res) => {
@@ -51,7 +57,7 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
+  // Vite middleware for development vs static serve for production
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -59,10 +65,11 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // In production, serve static files (if needed, but usually handled by platform)
-    // For this environment, we rely on the dev server mostly.
-    // But let's add a basic static serve just in case.
-    app.use(express.static("dist"));
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
