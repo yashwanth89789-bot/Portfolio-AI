@@ -1,332 +1,429 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { UrlInput } from './UrlInput';
+import {
+  Sparkles,
+  Zap,
+  Target,
+  Briefcase,
+  FileText,
+  Globe,
+  ArrowRight,
+  Loader2,
+  Linkedin,
+  Github,
+  Twitter,
+  Layers,
+  CheckCircle2,
+  Flame,
+  ShieldCheck,
+  TrendingUp,
+  Cpu
+} from 'lucide-react';
+import { Navbar } from './Navbar';
 import { AnalysisResult } from './AnalysisResult';
-import { AnalysisSkeleton } from './AnalysisSkeleton';
-import { performFullAnalysis } from '../services/gemini';
-import { Sparkles, Zap, Target, TrendingUp, Briefcase, CheckCircle, BookOpen } from 'lucide-react';
-import { Logo } from './Logo';
-
-export const ROLE_TIPS: Record<string, { resumeTips: string[], portfolioTips: string[] }> = {
-  'Frontend Engineer': {
-    resumeTips: [
-      'Highlight responsive design, performance metrics (Lighthouse scores), and modern frameworks (React, Next.js, Vue).',
-      'Showcase component library experience and design system contribution.',
-      'Quantify impact (e.g., "Reduced bundle size by 35%", "Improved page load by 1.2s").'
-    ],
-    portfolioTips: [
-      'Include live interactive links and clean, well-documented GitHub repositories.',
-      'Ensure impeccable accessibility (WCAG) and smooth, performant animations.',
-      'Showcase code snippets or architecture diagrams for complex UI state management.'
-    ]
-  },
-  'Full Stack / Backend Engineer': {
-    resumeTips: [
-      'Emphasize database scaling, API design (REST/GraphQL), cloud architecture (AWS/GCP), and security best practices.',
-      'Highlight system uptime, latency reduction, and high-throughput data processing.',
-      'Specify CI/CD pipelines, containerization (Docker/Kubernetes), and testing coverage.'
-    ],
-    portfolioTips: [
-      'Provide architecture overviews, sequence diagrams, and API documentation (Swagger/Postman).',
-      'Showcase backend benchmarks, load testing results, and fault-tolerance strategies.',
-      'Include clear deployment instructions and Docker Compose setups for quick evaluation.'
-    ]
-  },
-  'UI/UX Designer': {
-    resumeTips: [
-      'Focus on user research methodologies, wireframing, prototyping, and design systems.',
-      'Highlight collaboration with cross-functional teams and product managers.',
-      'Demonstrate business impact (e.g., "Increased conversion rate by 18% through redesigned checkout flow").'
-    ],
-    portfolioTips: [
-      'Present case studies detailing the problem, user research, iteration cycles, and final outcomes.',
-      'Show high-fidelity prototypes, user journey maps, and interaction design details.',
-      'Keep the portfolio visual, clean, and intuitive with pristine typography and spacing.'
-    ]
-  },
-  'Data Scientist / AI Engineer': {
-    resumeTips: [
-      'Highlight machine learning models, statistical analysis, data pipelines, and MLOps experience.',
-      'Mention specific libraries and frameworks (PyTorch, TensorFlow, Scikit-learn, LangChain).',
-      'Quantify model performance and business value (e.g., "Improved recommendation accuracy by 14%").'
-    ],
-    portfolioTips: [
-      'Include clean Jupyter notebooks with clear markdown explanations and visualizations.',
-      'Showcase end-to-end ML pipelines from data ingestion to model deployment.',
-      'Provide clear READMEs explaining dataset sources, evaluation metrics, and limitations.'
-    ]
-  },
-  'Mobile Developer': {
-    resumeTips: [
-      'Highlight native (Swift/Kotlin) or cross-platform (Flutter/React Native) expertise.',
-      'Mention app store deployments, ratings, and download milestones.',
-      'Emphasize offline storage, state management, and memory optimization.'
-    ],
-    portfolioTips: [
-      'Include direct links to App Store and Google Play, or smooth demo GIFs of app flows.',
-      'Showcase responsive layouts across various screen sizes and device orientations.',
-      'Highlight custom animations and native module integrations.'
-    ]
-  }
-};
+import { SamplePickerModal } from './SamplePickerModal';
+import { ExportModal } from './ExportModal';
+import { ROLES_DATA, SAMPLE_PORTFOLIOS } from '../data/rolesData';
+import { performLocalAudit } from '../services/analyzerEngine';
+import { FullAuditResult, SamplePortfolio } from '../types';
 
 export function AnalysisTool() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [results, setResults] = useState<{
-    critique: string;
-    marketing: string;
-    improvements: string;
-    score: any;
-    socialLinks: { linkedin: string, github: string, twitter: string };
-    analyzedUrl: string;
-    projects: any[];
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [rawContent, setRawContent] = useState('');
-  const [selectedRole, setSelectedRole] = useState<string>('Frontend Engineer');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [inputMode, setInputMode] = useState<'text' | 'url'>('text');
+  const [selectedRoleId, setSelectedRoleId] = useState<string>('frontend');
+  const [textContent, setTextContent] = useState('');
+  const [urlInput, setUrlInput] = useState('');
+  const [socialLinks, setSocialLinks] = useState({
+    linkedin: '',
+    github: '',
+    twitter: '',
+    portfolioUrl: ''
+  });
 
-  const handleAnalyze = async (url: string | null, content: string | null, socialLinks: { linkedin: string, github: string, twitter: string }) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [auditResult, setAuditResult] = useState<FullAuditResult | null>(null);
+
+  // Modals
+  const [isSampleModalOpen, setIsSampleModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Initialize theme from system or preference
+  useEffect(() => {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    }
+  }, []);
+
+  const handleToggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      return next;
+    });
+  };
+
+  const handleLoadSample = (sample: SamplePortfolio) => {
+    setSelectedRoleId(sample.role);
+    setTextContent(sample.content);
+    setSocialLinks({
+      linkedin: sample.socials.linkedin,
+      github: sample.socials.github,
+      twitter: sample.socials.twitter,
+      portfolioUrl: ''
+    });
+    setInputMode('text');
+    
+    // Automatically run audit
+    const result = performLocalAudit(sample.content, sample.role, sample.socials);
+    setAuditResult(result);
+    setError(null);
+  };
+
+  const handleRunAudit = async () => {
     setIsLoading(true);
     setError(null);
-    setResults(null);
-    console.log("Analyzing:", { url, content, socialLinks, selectedRole });
 
     try {
-      let finalContent = content;
+      let contentToAnalyze = textContent.trim();
 
-      if (url && !finalContent) {
-        // 1. Fetch content from our server proxy
-        const fetchUrl = `/api/fetch-url?url=${encodeURIComponent(url)}`;
-        console.log("Fetching from:", fetchUrl);
-        try {
-          const response = await fetch(fetchUrl);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.content) {
-              finalContent = data.content;
-            }
-          }
-        } catch (e) {
-          console.warn("Direct fetch proxy warning, falling back to URL analysis:", e);
+      if (inputMode === 'url') {
+        if (!urlInput.trim()) {
+          throw new Error('Please enter a valid portfolio URL.');
         }
 
-        if (!finalContent) {
-          finalContent = `Portfolio Website URL: ${url}. Please analyze this portfolio based on its URL and industry standards for professional developers and designers.`;
+        // Fetch URL content via local proxy
+        const response = await fetch(`/api/fetch-url?url=${encodeURIComponent(urlInput.trim())}`);
+        if (!response.ok) {
+          throw new Error('Could not fetch portfolio URL. You can also paste your resume or portfolio text directly.');
         }
-      }
-      
-      if (!finalContent) {
-        throw new Error('Please provide either a portfolio URL or content to analyze.');
-      }
-
-      // 2. Analyze with Gemini (Combined call to save quota)
-      const analysis = await performFullAnalysis(finalContent, socialLinks);
-
-      if (!analysis) {
-        throw new Error('Failed to analyze portfolio. Please try again later.');
+        const data = await response.json();
+        if (!data.content) {
+          throw new Error('No readable text extracted from the URL. Please paste your content directly.');
+        }
+        contentToAnalyze = data.content;
       }
 
-      setResults({
-        critique: analysis.critique || "Failed to generate critique.",
-        marketing: analysis.marketing || "Failed to generate marketing copy.",
-        improvements: analysis.improvements || "Failed to generate improvements.",
-        score: analysis.score || null,
-        socialLinks,
-        analyzedUrl: url || 'Manual Input',
-        projects: analysis.projects || [],
+      if (!contentToAnalyze || contentToAnalyze.length < 20) {
+        throw new Error('Please provide at least 20 characters of resume, experience, or portfolio text to analyze.');
+      }
+
+      // Execute high-speed deterministic client-side audit
+      const result = performLocalAudit(contentToAnalyze, selectedRoleId, {
+        ...socialLinks,
+        portfolioUrl: inputMode === 'url' ? urlInput : socialLinks.portfolioUrl
       });
 
+      setAuditResult(result);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'An unexpected error occurred.');
+      setError(err.message || 'An error occurred during portfolio analysis.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleReset = () => {
+    setAuditResult(null);
+    setError(null);
+  };
+
+  const activeRoleInfo = ROLES_DATA[selectedRoleId] || ROLES_DATA['frontend'];
+
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-indigo-500 selection:text-white">
-      <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none mix-blend-overlay"></div>
+    <div className={`min-h-screen ${isDarkMode ? 'dark' : ''} bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans transition-colors`}>
       
-      <main className="relative container mx-auto px-4 py-16 lg:py-24 flex flex-col items-center max-w-5xl">
+      {/* Top Navbar */}
+      <Navbar
+        onOpenSampleModal={() => setIsSampleModalOpen(true)}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        onReset={handleReset}
+        hasResults={!!auditResult}
+      />
+
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center max-w-3xl mx-auto mb-12 flex flex-col items-center"
-        >
-          <Logo className="mb-6" />
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-sm font-medium mb-4 border border-indigo-100 dark:border-indigo-800">
-            <Sparkles className="w-4 h-4" />
-            <span>AI-Powered Portfolio Analysis</span>
-          </div>
-          
-          <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 bg-clip-text text-transparent bg-gradient-to-b from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-500">
-            Portfolio Booster
-          </h1>
-          
-          <p className="text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
-            Turn your portfolio into a hiring magnet. Get instant feedback, 
-            industry benchmarks, and viral launch assets in seconds.
-          </p>
-        </motion.div>
+        {auditResult ? (
+          /* Analysis Results View */
+          <AnalysisResult
+            audit={auditResult}
+            rawContent={textContent || urlInput}
+            onReset={handleReset}
+            onUpdateContent={(updated) => {
+              setTextContent(updated);
+              const reaudit = performLocalAudit(updated, selectedRoleId, socialLinks);
+              setAuditResult(reaudit);
+            }}
+          />
+        ) : (
+          /* Input Hub View */
+          <div className="space-y-8 animate-in fade-in duration-300">
+            
+            {/* Hero Header */}
+            <div className="text-center max-w-3xl mx-auto space-y-4">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-xs font-semibold">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Deterministic ATS Scoring & Recruiter Eye-Tracking</span>
+              </div>
 
-        {/* Top Control Grid: Role Selector & Inputs */}
-        <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          
-          {/* Left Column: Role Selector & Industry Tips */}
-          <div className="lg:col-span-1 flex flex-col gap-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
-              <label className="block text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-3 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-indigo-500" />
-                Target Role
-              </label>
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="w-full p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium"
-              >
-                {Object.keys(ROLE_TIPS).map((role) => (
-                  <option key={role} value={role}>{role}</option>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-zinc-900 dark:text-white">
+                Supercharge Your Tech Resume & Portfolio
+              </h1>
+
+              <p className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+                Scan against 50,000+ benchmarked profiles. Detect missing high-impact keywords, rewrite weak bullet points with the Google X-Y-Z formula, and simulate the recruiter's 6-second glance.
+              </p>
+            </div>
+
+            {/* Role Selection Matrix */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white">
+                    Step 1: Select Target Job Role
+                  </h3>
+                </div>
+                <span className="text-xs text-zinc-500 font-medium">
+                  {Object.keys(ROLES_DATA).length} Specialized Industry Taxonomies
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                {Object.values(ROLES_DATA).map((role) => (
+                  <button
+                    key={role.id}
+                    onClick={() => setSelectedRoleId(role.id)}
+                    className={`p-3 rounded-xl border text-left transition-all ${
+                      selectedRoleId === role.id
+                        ? 'border-indigo-600 bg-indigo-50/70 dark:bg-indigo-950/50 text-indigo-900 dark:text-indigo-200 ring-2 ring-indigo-500/20'
+                        : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/40 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    <div className="font-bold text-xs truncate mb-1">
+                      {role.title}
+                    </div>
+                    <div className="text-[10px] text-zinc-500 line-clamp-1">
+                      {role.primaryKeywords.slice(0, 2).join(', ')}
+                    </div>
+                  </button>
                 ))}
-              </select>
-            </div>
-
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-xl border border-zinc-200 dark:border-zinc-800 flex-1">
-              <div className="flex items-center gap-2 mb-4">
-                <BookOpen className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider">Role Benchmarks</h3>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase mb-2">Resume Essentials</h4>
-                  <ul className="space-y-1.5">
-                    {ROLE_TIPS[selectedRole].resumeTips.slice(0, 2).map((tip, idx) => (
-                      <li key={idx} className="text-xs text-zinc-600 dark:text-zinc-400 flex items-start gap-1.5">
-                        <span className="text-indigo-500 font-bold">•</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 uppercase mb-2">Portfolio Must-Haves</h4>
-                  <ul className="space-y-1.5">
-                    {ROLE_TIPS[selectedRole].portfolioTips.slice(0, 2).map((tip, idx) => (
-                      <li key={idx} className="text-xs text-zinc-600 dark:text-zinc-400 flex items-start gap-1.5">
-                        <span className="text-indigo-500 font-bold">•</span>
-                        <span>{tip}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               </div>
             </div>
-          </div>
 
-          {/* Right Column: URL Input & Direct Paste */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Target className="w-4 h-4 text-indigo-500" />
-                Scan via Portfolio URL
-              </h3>
-              <UrlInput onAnalyze={(url, social) => handleAnalyze(url, null, social)} isLoading={isLoading} />
-            </div>
+            {/* Input Method Switcher & Content Box */}
+            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 sm:p-8 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-6">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-900 dark:text-white">
+                    Step 2: Provide Resume or Portfolio Content
+                  </h3>
+                </div>
 
-            <div className="bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-xl border border-zinc-200 dark:border-zinc-800">
-              <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-wider mb-4 flex items-center gap-2">
-                <Zap className="w-4 h-4 text-indigo-500" />
-                Or Paste Portfolio Content Directly
-              </h3>
-              <textarea
-                value={rawContent}
-                onChange={(e) => setRawContent(e.target.value)}
-                placeholder="Paste your project descriptions, bio, skills, and experience here..."
-                className="w-full h-32 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none mb-4"
-              />
+                {/* Switcher */}
+                <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl self-start sm:self-auto">
+                  <button
+                    onClick={() => setInputMode('text')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                      inputMode === 'text'
+                        ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" /> Paste Text / Markdown
+                  </button>
+                  <button
+                    onClick={() => setInputMode('url')}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+                      inputMode === 'url'
+                        ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm'
+                        : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900'
+                    }`}
+                  >
+                    <Globe className="w-3.5 h-3.5" /> Scan Live URL
+                  </button>
+                </div>
+              </div>
+
+              {/* Mode A: Text / Markdown */}
+              {inputMode === 'text' ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2 text-xs text-zinc-500">
+                    <span>Paste resume summary, bullet points, skills, or full markdown:</span>
+                    <button
+                      onClick={() => handleLoadSample(SAMPLE_PORTFOLIOS[0])}
+                      className="text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                    >
+                      Fill with sample data
+                    </button>
+                  </div>
+
+                  <textarea
+                    value={textContent}
+                    onChange={(e) => setTextContent(e.target.value)}
+                    placeholder={`e.g.\n${activeRoleInfo.title} with 4+ years of experience...\n\nExperience:\n• Spearheaded core web architecture reducing load times by 40%...\n\nSkills:\n${activeRoleInfo.primaryKeywords.slice(0, 6).join(', ')}...`}
+                    rows={8}
+                    className="w-full p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-white text-xs sm:text-sm font-mono leading-relaxed outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+                  />
+                </div>
+              ) : (
+                /* Mode B: URL */
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
+                    Enter Public Portfolio or GitHub Pages URL:
+                  </label>
+                  <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-3 rounded-xl">
+                    <Globe className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <input
+                      type="url"
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      placeholder="https://yourportfolio.dev"
+                      className="w-full bg-transparent border-none outline-none text-xs sm:text-sm text-zinc-900 dark:text-white placeholder-zinc-400"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Optional Social Profiles for Social Proof scoring */}
+              <div className="pt-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 block mb-3">
+                  Optional: Verify Proof of Work Handles (Boosts Social Proof Score)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    <Linkedin className="w-4 h-4 text-blue-600 shrink-0" />
+                    <input
+                      type="text"
+                      value={socialLinks.linkedin}
+                      onChange={(e) => setSocialLinks(s => ({ ...s, linkedin: e.target.value }))}
+                      placeholder="linkedin.com/in/..."
+                      className="w-full bg-transparent border-none outline-none text-xs text-zinc-900 dark:text-white placeholder-zinc-400"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    <Github className="w-4 h-4 text-zinc-800 dark:text-zinc-200 shrink-0" />
+                    <input
+                      type="text"
+                      value={socialLinks.github}
+                      onChange={(e) => setSocialLinks(s => ({ ...s, github: e.target.value }))}
+                      placeholder="github.com/..."
+                      className="w-full bg-transparent border-none outline-none text-xs text-zinc-900 dark:text-white placeholder-zinc-400"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800/60 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    <Twitter className="w-4 h-4 text-sky-500 shrink-0" />
+                    <input
+                      type="text"
+                      value={socialLinks.twitter}
+                      onChange={(e) => setSocialLinks(s => ({ ...s, twitter: e.target.value }))}
+                      placeholder="x.com/..."
+                      className="w-full bg-transparent border-none outline-none text-xs text-zinc-900 dark:text-white placeholder-zinc-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Error Banner */}
+              {error && (
+                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs sm:text-sm">
+                  {error}
+                </div>
+              )}
+
+              {/* Action Button */}
               <button
-                onClick={() => handleAnalyze(null, rawContent, { linkedin: '', github: '', twitter: '' })}
-                disabled={isLoading || !rawContent.trim()}
-                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20 text-sm"
+                onClick={handleRunAudit}
+                disabled={isLoading}
+                id="run-audit-button"
+                className="w-full py-4 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-sm sm:text-base flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20 transition-all cursor-pointer"
               >
-                {isLoading ? 'Analyzing Portfolio...' : 'Analyze Pasted Content'}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Auditing Competencies & Keyword Taxonomy...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Run Comprehensive Profile Audit</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </>
+                )}
               </button>
+
             </div>
+
+            {/* Bottom 3 Feature Highlights */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+              <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
+                  01
+                </div>
+                <h4 className="font-bold text-sm text-zinc-900 dark:text-white">
+                  6-Dimensional Radar
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Scores ATS compliance, impact metrics density, action verb strength, technical depth, and readability against 50k profiles.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold text-xs">
+                  02
+                </div>
+                <h4 className="font-bold text-sm text-zinc-900 dark:text-white">
+                  Google X-Y-Z Bullet Lab
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Transform passive job duties into quantifiable leadership proof points with one-click copyable variations.
+                </p>
+              </div>
+
+              <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
+                  03
+                </div>
+                <h4 className="font-bold text-sm text-zinc-900 dark:text-white">
+                  6-Second Heatmap Simulator
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Visualize where recruiters' eyes land, eliminate cognitive friction, and position your strongest metrics where they count.
+                </p>
+              </div>
+            </div>
+
           </div>
-
-        </div>
-
-        {error && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="w-full max-w-3xl mb-8 p-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-xl border border-red-100 dark:border-red-800 text-center text-sm"
-          >
-            {error}
-          </motion.div>
         )}
 
-        {isLoading && <AnalysisSkeleton />}
-
-        {results && (
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="w-full"
-          >
-            <AnalysisResult 
-              critique={results.critique}
-              marketing={results.marketing}
-              improvements={results.improvements}
-              score={results.score}
-              socialLinks={results.socialLinks}
-              analyzedUrl={results.analyzedUrl}
-              projects={results.projects}
-            />
-          </motion.div>
-        )}
-
-        {!results && !isLoading && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12 w-full text-center"
-          >
-            <Feature 
-              icon={<Target className="w-5 h-5" />}
-              title="Brutal Critique"
-              desc="Honest feedback on UX, copy, and visual hierarchy."
-            />
-            <Feature 
-              icon={<TrendingUp className="w-5 h-5" />}
-              title="Radar Scoring"
-              desc="Comprehensive 5-axis portfolio evaluation."
-            />
-            <Feature 
-              icon={<Zap className="w-5 h-5" />}
-              title="Viral Marketing"
-              desc="Ready-to-post tweets and LinkedIn updates."
-            />
-          </motion.div>
-        )}
       </main>
-    </div>
-  );
-}
 
+      {/* Sample Picker Modal */}
+      <SamplePickerModal
+        isOpen={isSampleModalOpen}
+        onClose={() => setIsSampleModalOpen(false)}
+        onSelectSample={handleLoadSample}
+      />
 
-function Feature({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
-  return (
-    <div className="p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-shadow">
-      <div className="w-12 h-12 mx-auto bg-zinc-100 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-900 dark:text-white mb-4">
-        {icon}
-      </div>
-      <h3 className="text-lg font-semibold mb-2 text-zinc-900 dark:text-white">{title}</h3>
-      <p className="text-zinc-500 dark:text-zinc-400 text-sm">{desc}</p>
+      {/* Export Modal */}
+      {auditResult && (
+        <ExportModal
+          isOpen={isExportModalOpen}
+          onClose={() => setIsExportModalOpen(false)}
+          audit={auditResult}
+        />
+      )}
+
     </div>
   );
 }
